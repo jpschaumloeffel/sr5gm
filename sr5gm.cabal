@@ -1,0 +1,13 @@
+Name: sr5gm
+Version: 0.1
+Cabal-Version: >= 1.2
+License: MIT
+Author: Jan Schaumlöffel
+Synopsis: A Happstack-based gamemaster tool for Shadowrun, 5th Edition
+Build-Type: Simple
+
+Executable sr5gm
+  Build-Depends: base, mtl, happstack-server, blaze-html, acid-state, safecopy, text
+  Main-Is: sr5gm.hs
+  Hs-Source-Dirs: sr5gm
+
