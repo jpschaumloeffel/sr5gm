@@ -14,48 +14,60 @@ import Data.Acid            ( AcidState, Query, Update
                             , makeAcidic, openLocalState )
 import Data.Acid.Advanced   ( query', update' )
 import Data.Acid.Local      ( createCheckpointAndClose )
-import Data.SafeCopy        ( base, deriveSafeCopy )
+import Data.SafeCopy        ( base, deriveSafeCopy, SafeCopy )
 
 import Text.Blaze.Html5 (Html, (!), a, form, input, p, toHtml, label)
 import Text.Blaze.Html5.Attributes (action, enctype, href, name, size, type_, value)
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 
+import Data.IxSet           ( Indexable(..), IxSet(..), (@=)
+                            , Proxy(..), getOne, ixFun, ixSet, toList, insert )
 
 -- types for characters
+
+newtype CharacterId = CharacterId { unCharacterId :: Integer }
+	deriving (Eq, Ord, Read, Show, Data, Enum, Typeable, SafeCopy)
+
 type Initiative = (Integer, Integer) -- base and num of dice
 data Character = Character {
-	charId :: Integer,  
+	charId :: CharacterId,  
 	charName :: String, 
 	charInitiative :: Maybe Initiative 
 } deriving (Eq, Ord, Read, Show, Data, Typeable)
 
 $(deriveSafeCopy 0 'base ''Character)
 
+instance Indexable Character where
+	empty = ixSet
+		[ ixFun $ \bp -> [charId bp]
+		]
 
 -- global app state
 data AppState = AppState {
-	nextCharId :: Integer,
-	stateCharacters :: [Character]
+	stateNextCharId :: Integer,
+	stateCharacters :: IxSet Character
 } deriving (Eq, Ord, Read, Show, Data, Typeable)
 
 $(deriveSafeCopy 0 'base ''AppState)
 
 initialAppState :: AppState
-initialAppState = AppState 1 []
+initialAppState = AppState 1 empty
 
 -- state manipulation
 
 peekCharacters :: Query AppState [Character]
-peekCharacters =  stateCharacters <$> ask
+peekCharacters = do
+	AppState{..} <- ask
+	return $ toList stateCharacters 
 
 addCharacter :: Character -> Update AppState [Character]
 addCharacter c = do
 	a@AppState{..} <- get
-	let newChars = c { charId = nextCharId } : stateCharacters
-	let newNextId = nextCharId + 1
-	put $ a { stateCharacters = newChars, nextCharId = newNextId }
-	return newChars
+	let newChars = insert (c { charId = CharacterId stateNextCharId }) stateCharacters
+	let newNextId = stateNextCharId + 1
+	put $ a { stateCharacters = newChars, stateNextCharId = newNextId }
+	return $ toList newChars
 
 $(makeAcidic ''AppState [ 'peekCharacters, 'addCharacter ])
 
@@ -67,7 +79,7 @@ templateCharacters cs =
 		H.h1 "Characters"
 		H.table $ forM_ cs (\c -> 
 			H.tr $ do
-				H.td $ (toHtml (charId c))
+				H.td $ (toHtml (unCharacterId $ charId c))
 				H.td $ (toHtml (charName c))
 				H.td $ (toHtml (show (charInitiative c)))
 			)
@@ -93,7 +105,7 @@ handlers acid = do
 			method POST
 			name <- look "name"
 			-- decodeBody
-			c <- update' acid (AddCharacter (Character 0 name Nothing))
+			c <- update' acid (AddCharacter (Character (CharacterId 0) name Nothing))
 			seeOther ("/char" :: String) (toResponse ())
 		, homePage
 		]

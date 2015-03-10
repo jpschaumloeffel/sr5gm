@@ -7,7 +7,7 @@ Synopsis: A Happstack-based gamemaster tool for Shadowrun, 5th Edition
 Build-Type: Simple
 
 Executable sr5gm
-  Build-Depends: base, mtl, happstack-server, blaze-html, acid-state, safecopy, text
+  Build-Depends: base, mtl, happstack-server, blaze-html, acid-state, safecopy, text, ixset
   Main-Is: sr5gm.hs
   Hs-Source-Dirs: sr5gm
 
